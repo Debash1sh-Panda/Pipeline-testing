@@ -12,40 +12,40 @@ on:
 jobs:
 
   deploy:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+  if: github.event_name == 'push'
+  runs-on: ubuntu-latest
 
-    steps:
-      - name: Set up SSH access
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+  steps:
+    - name: Set up SSH access
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
 
-      - name: Run deployment on EC2
-        run: |
-          echo "Starting Deployment"
+    - name: Debug + Run deployment on EC2
+      run: |
+        set -x  # 👈 Enable debug
+        echo "Starting Deployment"
 
-          if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
-            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
-              set -e
-              cd ~/Pipeline-testing
-              git checkout development
-              git pull origin development
-              make rebuild
-            "
+        if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
+            cd ~/Pipeline-testing &&
+            git checkout development &&
+            git pull origin development &&
+            make rebuild
+          "
 
-          elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
-            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
-              cd ~/Pipeline-testing &&
-              git checkout production &&
-              git pull &&
-              make rebuild
-            "
-          fi
+        elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
+            cd ~/Pipeline-testing &&
+            git checkout production &&
+            git pull &&
+            make rebuild
+          "
+        fi
 
-      - name: Done
-        run: echo "✅ Deployment finished successfully!"
+    - name: Done
+      run: echo "✅ Deployment finished successfully!"
 
   cleanup:
     if: github.event_name == 'schedule'
