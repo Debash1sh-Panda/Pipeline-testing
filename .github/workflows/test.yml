@@ -28,7 +28,7 @@ jobs:
 
           if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
             ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
-              cd ~/myproject &&
+              cd ~/Pipeline-testing &&
               git checkout development &&
               git pull origin development &&
               make rebuild
@@ -36,7 +36,7 @@ jobs:
 
           elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
             ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
-              cd ~/getirnow-frontend &&
+              cd ~/Pipeline-testing &&
               git checkout production &&
               git pull &&
               make rebuild
