@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    container_name: pipeline-test
+    restart: always
+    ports:
+      - "5173:5173" 
+      # <host_port>:<container_port>
+      # 5173 (on the left) is the host port — the port on your local machine or server.
+      # 5173 (on the right) is the container port — the port exposed by the app running inside the container.
