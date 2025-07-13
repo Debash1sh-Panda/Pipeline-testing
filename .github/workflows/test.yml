@@ -44,7 +44,7 @@ jobs:
           fi
 
       - name: Done
-        run: echo "✅ Deployment finished successfully!"
+        run: echo "✅ Deployment finished successfully, Yahoo! 😎"
 
   cleanup:
     if: github.event_name == 'schedule'
