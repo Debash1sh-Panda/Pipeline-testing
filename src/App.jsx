@@ -1,10 +1,11 @@
+import React from 'react'
 import './App.css'
 
 function App() {
 
   return (
     <>
-      <h1>Pipeline Testing</h1>
+      <h1 style={{color: "teal"}}>Yahh 😎, Pipeline Tested Successfully ✅</h1>
     </>
   )
 }
