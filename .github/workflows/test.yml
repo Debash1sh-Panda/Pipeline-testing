@@ -7,7 +7,7 @@ on:
       - production
 
   schedule:
-    - cron: '0 0 * * *'  # Runs every day at midnight UTC
+    - cron: '0 0 * * *'  # Daily at midnight UTC
 
 jobs:
 
@@ -19,22 +19,24 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          sed -i 's/\r$//' ~/.ssh/id_rsa  # fix Windows line endings
           chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
       - name: Debug + Run deployment on EC2
         run: |
           set -x
           echo "Starting Deployment"
 
-          if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
-            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
+          if [[ "${GITHUB_REF##*/}" == "development" ]]; then
+            ssh -i ~/.ssh/id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
               cd ~/Pipeline-testing &&
               git checkout development &&
               git pull origin development &&
               make rebuild
             "
-          elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
-            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
+          elif [[ "${GITHUB_REF##*/}" == "production" ]]; then
+            ssh -i ~/.ssh/id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
               cd ~/Pipeline-testing &&
               git checkout production &&
               git pull origin production &&
@@ -54,11 +56,13 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          sed -i 's/\r$//' ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
       - name: Run safe Docker cleanup on EC2
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
             echo '🧹 Starting Docker cleanup...'
             docker system df
             docker container prune -f
