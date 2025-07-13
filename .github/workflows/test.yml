@@ -1,4 +1,4 @@
-name: EC2 Deployment and Scheduled Cleanup
+name: Deploy to EC2 & Cleanup
 
 on:
   push:
@@ -7,43 +7,44 @@ on:
       - production
 
   schedule:
-    - cron: '0 0 * * *'  # Runs every day at midnight UTC
+    - cron: '0 0 * * *'  # Every day at midnight UTC
 
 jobs:
-
   deploy:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code (optional for secrets only)
+        uses: actions/checkout@v3
+
       - name: Set up SSH access
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
-      - name: Debug + Run deployment on EC2
+      - name: Deploy to EC2
         run: |
-          set -x
-          echo "Starting Deployment"
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << EOF
+            set -e  # Exit on error
+            cd ~/Pipeline-testing
 
-          if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
-            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
-              cd ~/Pipeline-testing &&
-              git checkout development &&
-              git pull origin development &&
-              make rebuild
-            "
-          elif [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
-            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
-              cd ~/Pipeline-testing &&
-              git checkout production &&
-              git pull origin production &&
-              make rebuild
-            "
-          fi
+            echo "📦 Pulling latest code"
+            git fetch origin
+            git reset --hard origin/${{ github.ref_name }}
+
+            echo "🐳 Rebuilding Docker containers"
+            docker-compose down
+            docker-compose build --no-cache
+            docker-compose up -d --remove-orphans
+
+            echo "✅ Deployment completed on branch: ${{ github.ref_name }}"
+          EOF
 
       - name: Done
-        run: echo "✅ Deployment finished successfully!"
+        run: echo "✅ Deployment finished for ${{ github.ref_name }}!"
 
   cleanup:
     if: github.event_name == 'schedule'
@@ -55,14 +56,14 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
-      - name: Run safe Docker cleanup on EC2
+      - name: Run Docker Cleanup on EC2
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
-            echo '🧹 Starting Docker cleanup...'
-            docker system df
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << EOF
+            echo "🧹 Running Docker Cleanup"
             docker container prune -f
             docker image prune -f
             docker volume prune -f
             docker system df
-          "
+          EOF
